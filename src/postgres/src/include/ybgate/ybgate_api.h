@@ -129,6 +129,10 @@ YbgStatus YbgExprContextAddColValue(YbgExprContext expr_ctx, int32_t attno, uint
  */
 YbgStatus YbgEvalExpr(char* expr_cstring, YbgExprContext expr_ctx, uint64_t *datum, bool *is_null);
 
+int YbgDecodeTextArrayToCString(uint64_t datum, char ***cstringp);
+
+int YbgSplitArrayDatum(uint64_t datum, int type, uint64_t **result_datum_array);
+
 #ifdef __cplusplus
 }
 #endif

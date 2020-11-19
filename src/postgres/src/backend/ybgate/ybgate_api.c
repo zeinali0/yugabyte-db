@@ -18,15 +18,18 @@
 
 #include "ybgate/ybgate_api.h"
 
-#include "nodes/primnodes.h"
-#include "nodes/makefuncs.h"
-#include "utils/numeric.h"
-#include "utils/memutils.h"
+#include "catalog/pg_type.h"
 #include "catalog/ybctype.h"
 #include "common/int.h"
-#include "nodes/execnodes.h"
-#include "executor/executor.h"
 #include "executor/execExpr.h"
+#include "executor/executor.h"
+#include "nodes/execnodes.h"
+#include "nodes/makefuncs.h"
+#include "nodes/primnodes.h"
+#include "utils/array.h"
+#include "utils/builtins.h"
+#include "utils/memutils.h"
+#include "utils/numeric.h"
 
 //-----------------------------------------------------------------------------
 // Memory Context
@@ -222,3 +225,39 @@ YbgStatus YbgEvalExpr(char* expr_cstring, YbgExprContext expr_ctx, uint64_t *dat
 	*datum = (uint64_t) evalExpr(expr_ctx, expr, is_null);
 	return PG_STATUS_OK;
 }
+
+int YbgDecodeTextArrayToCString(uint64_t datum, char ***cstringp)
+{
+  ArrayType  *arr = DatumGetArrayTypeP((Datum)datum);
+  Datum    *elems;
+  char    **cstring;
+  int     i;
+  int     nelems;
+
+  if (ARR_NDIM(arr) != 1 || ARR_HASNULL(arr) || ARR_ELEMTYPE(arr) != TEXTOID)
+    elog(ERROR, "expected 1-D text array");
+
+  deconstruct_array(arr, TEXTOID, -1, false, 'i', &elems, NULL, &nelems);
+
+  cstring = palloc(nelems * sizeof(char *));
+  for (i = 0; i < nelems; ++i) {
+    cstring[i] = TextDatumGetCString(elems[i]);
+  }
+  pfree(elems);
+  *cstringp = cstring;
+  return nelems;
+}
+
+int YbgSplitArrayDatum(uint64_t datum, int type, uint64_t **result_datum_array)
+{
+  int nelems;
+  ArrayType  *arr = DatumGetArrayTypeP((Datum)datum);
+
+  if (ARR_NDIM(arr) != 1 || ARR_HASNULL(arr) || ARR_ELEMTYPE(arr) != type)
+    elog(ERROR, "expected 1-D array of type %d", type);
+
+  deconstruct_array(arr, type, -1, false, 'i', (Datum**)result_datum_array, NULL, &nelems);
+
+  return nelems;
+}
+

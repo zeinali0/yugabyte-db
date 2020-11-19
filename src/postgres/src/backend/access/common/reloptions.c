@@ -379,6 +379,15 @@ static relopt_int intRelOpts[] =
 		},
 		-1, FirstNormalObjectId, INT_MAX
 	},
+	{
+		{
+			"replication_factor",
+			"Number of replicas for the data stored in this object",
+			RELOPT_KIND_YB_TABLESPACE,
+			AccessExclusiveLock
+		},
+		3, 1, INT_MAX
+	},
 	/* list terminator */
 	{{NULL}}
 };
@@ -476,6 +485,18 @@ static relopt_string stringRelOpts[] =
 		0,
 		true,
 		validateWithCheckOption,
+		NULL
+	},
+	{
+		{
+			"placement",
+			"Comma separated list of the form <cloud.region.zone=minreplicas>",
+			RELOPT_KIND_YB_TABLESPACE,
+			AccessExclusiveLock
+		},
+		0,
+		true,
+		validatePlacementConfiguration,
 		NULL
 	},
 	/* list terminator */
@@ -1616,6 +1637,38 @@ tablespace_reloptions(Datum reloptions, bool validate)
 
 	return (bytea *) tsopts;
 }
+
+/*
+ * Option parser for yugabyte tablespace reloptions
+ */
+bytea *
+yb_tablespace_reloptions(Datum reloptions, bool validate)
+{
+  relopt_value *options;
+  YBTableSpaceOpts *tsopts;
+  int     numoptions;
+  static const relopt_parse_elt yb_tab[] = {
+    {"replication_factor", RELOPT_TYPE_INT, offsetof(YBTableSpaceOpts, replication_factor)},
+    {"placement", RELOPT_TYPE_STRING, offsetof(YBTableSpaceOpts, placement_offset)}
+  };
+
+  options = parseRelOptions(reloptions, validate, RELOPT_KIND_YB_TABLESPACE, &numoptions);
+
+  /* if none set, we're done */
+  if (numoptions == 0) {
+    return NULL;
+  }
+
+  tsopts = allocateReloptStruct(sizeof(YBTableSpaceOpts), options, numoptions);
+
+  fillRelOptions((void *) tsopts, sizeof(YBTableSpaceOpts), options, numoptions,
+	validate, yb_tab, lengthof(yb_tab));
+
+  pfree(options);
+
+  return (bytea *) tsopts;
+}
+
 
 /*
  * Determine the required LOCKMODE from an option list.

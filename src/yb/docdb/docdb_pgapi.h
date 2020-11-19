@@ -58,6 +58,15 @@ Status DocPgEvalExpr(const std::string& expr_str,
                      const Schema *schema,
                      QLValue* result);
 
+Status ExtractTextArrayFromQLBinaryValue(const QLValuePB& ql_value,
+                                         std::vector<QLValuePB> *const ql_value_vec);
+
+Status ExtractVectorFromQLBinaryValueHelper(
+    const QLValuePB& ql_value,
+    const int array_type,
+    const int elem_type,
+    std::vector<QLValuePB> *result);
+
 } // namespace docdb
 } // namespace yb
 
